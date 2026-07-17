@@ -107,9 +107,12 @@ jobs:
           ./scripts/prepare-myir-config.sh "$MYIR_PROFILE"
           sed -i "s|^CONFIG_EXTERNAL_KERNEL_TREE=.*|CONFIG_EXTERNAL_KERNEL_TREE=\"$GITHUB_WORKSPACE/rz_linux-cip\"|" .config
           make defconfig
-          make menuconfig
           echo "Using profile: $MYIR_PROFILE"
           grep '^CONFIG_EXTERNAL_KERNEL_TREE=' .config
+      - name: Build configuration
+        run: |
+          export TERM=xterm
+          make defconfig
 
       - name: Download sources
         working-directory: openwrt
