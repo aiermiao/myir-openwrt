@@ -99,7 +99,8 @@ jobs:
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-
+      - name: Setup Tmate SSH Debugger
+        uses: mxschmitt/action-tmate@v3
       - name: Prepare defconfig
         working-directory: openwrt
         run: |
@@ -109,10 +110,6 @@ jobs:
           make defconfig
           echo "Using profile: $MYIR_PROFILE"
           grep '^CONFIG_EXTERNAL_KERNEL_TREE=' .config
-      - name: Build configuration
-        run: |
-          export TERM=xterm
-          make defconfig
 
       - name: Download sources
         working-directory: openwrt
