@@ -85,8 +85,15 @@ jobs:
           pwd
           ls -la
           test -d openwrt
-          test -d rz_linux-cip
-
+          test -d rz_linux-cip       
+      - name: Checkout custom source packages
+        working-directory: openwrt
+        run: |
+          git clone https://github.com/jerrykuku/luci-theme-argon.git \
+            package/luci-theme-argon
+          git -C package/luci-theme-argon checkout \
+            1c686ed83cdf0b79684df45074111ff56f296a6b
+            
       - name: Update and install feeds
         working-directory: openwrt
         run: |
@@ -100,6 +107,7 @@ jobs:
           ./scripts/prepare-myir-config.sh "$MYIR_PROFILE"
           sed -i "s|^CONFIG_EXTERNAL_KERNEL_TREE=.*|CONFIG_EXTERNAL_KERNEL_TREE=\"$GITHUB_WORKSPACE/rz_linux-cip\"|" .config
           make defconfig
+          make menuconfig
           echo "Using profile: $MYIR_PROFILE"
           grep '^CONFIG_EXTERNAL_KERNEL_TREE=' .config
 
