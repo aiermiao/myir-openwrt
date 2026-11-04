@@ -24,3 +24,9 @@ if [ ! -f "$PROFILE_CONFIG" ]; then
 fi
 
 "$TOPDIR/scripts/kconfig.pl" '+' "$BASE_CONFIG" "$PROFILE_CONFIG" > "$OUTPUT_CONFIG"
+
+KERNEL_DIR="${EXTERNAL_KERNEL_TREE:-$(cd "$TOPDIR/../rz_linux-cip" 2>/dev/null && pwd || true)}"
+if [ -n "$KERNEL_DIR" ] && [ -d "$KERNEL_DIR" ]; then
+  sed -i "s|^CONFIG_EXTERNAL_KERNEL_TREE=.*|CONFIG_EXTERNAL_KERNEL_TREE=\"$KERNEL_DIR\"|" "$OUTPUT_CONFIG"
+fi
+
