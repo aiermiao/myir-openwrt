@@ -30,3 +30,10 @@ if [ -n "$KERNEL_DIR" ] && [ -d "$KERNEL_DIR" ]; then
   sed -i "s|^CONFIG_EXTERNAL_KERNEL_TREE=.*|CONFIG_EXTERNAL_KERNEL_TREE=\"$KERNEL_DIR\"|" "$OUTPUT_CONFIG"
 fi
 
+# Ensure Golang toolchain version matches modern proxy packages (e.g. xray-core >= 1.27)
+GOLANG_VALUES="$TOPDIR/feeds/packages/lang/golang/golang-values.mk"
+if [ -f "$GOLANG_VALUES" ]; then
+  sed -i 's|^GO_DEFAULT_VERSION:=.*|GO_DEFAULT_VERSION:=1.27|' "$GOLANG_VALUES"
+fi
+
+
