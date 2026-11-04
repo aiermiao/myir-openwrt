@@ -59,7 +59,7 @@ define Device/myir_mys_rzg2l_wifi
   DEVICE_DTS := renesas/mys-rzg2l-wifi
   SUPPORTED_DEVICES := myir,mys-rzg2l-wifi
   DEVICE_COMPAT_VERSION := 1.1
-  IMAGE_METADATA := "myir_e2fsprogs_min": "1.47.4"
+  IMAGE_METADATA := "myir_e2fsprogs_min": "1.47.0"
   IMAGES += sysupgrade.tar.gz
   IMAGE/sdcard.img.gz := boot-common | myir-emmc-image | gzip | append-metadata
   IMAGE/sysupgrade.tar.gz := sysupgrade-tar \

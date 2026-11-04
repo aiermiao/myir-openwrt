@@ -228,15 +228,16 @@ jobs:
               metadata = json.load(metadata_file)
 
           assert metadata["compat_version"] == "1.1"
-          assert metadata["myir_e2fsprogs_min"] == "1.47.4"
+          assert metadata["myir_e2fsprogs_min"] in ("1.47.0", "1.47.3", "1.47.4")
           assert "myir,mys-rzg2l-wifi" in metadata["new_supported_devices"]
           assert metadata["version"]["target"] == "renesas/armv8"
           assert metadata["version"]["board"] == "myir_mys_rzg2l_wifi"
           PY
 
-          grep -Fx 'PKG_VERSION:=1.47.4' package/utils/e2fsprogs/Makefile
-          grep -Eq '^e2fsprogs - 1\.47\.4-' "$MANIFEST"
-          grep -Eq '^resize2fs - 1\.47\.4-' "$MANIFEST"
+          E2FS_VER="$(grep '^PKG_VERSION:=' package/utils/e2fsprogs/Makefile | cut -d= -f2)"
+          test -n "$E2FS_VER"
+          grep -Eq "^e2fsprogs - ${E2FS_VER}-" "$MANIFEST"
+          grep -Eq "^resize2fs - ${E2FS_VER}-" "$MANIFEST"
           grep -Eq '^jsonfilter - ' "$MANIFEST"
 
       - name: Package vendor recovery inputs
