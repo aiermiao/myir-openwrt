@@ -1,4 +1,4 @@
-# MYiR MYS-RZG2L OpenWrt 6.12 完整使用与定制指南
+# MYiR MYS-RZG2L Remi Pi OpenWrt 6.12 完整使用与定制指南
 
 本文面向以下几类使用者：
 
@@ -10,14 +10,14 @@
 
 当前可用源码分支是 [`codex/myir-sysupgrade`](https://github.com/aierm/myir-openwrt/tree/codex/myir-sysupgrade)。旧 `master` 基线不包含本项目的 MYiR sysupgrade 实现，不应拿来生成在线升级固件。
 
-2026-07-16 已在真实 MYS-RZG2L WiFi 板上完成 `proxy-zh` profile 的 LuCI sysupgrade，经过验证的 OpenWrt commit 为 `41f7f75c3453d6cd32c8ed1d36e15b2bcf86accf`，对应的 [GitHub Actions 构建](https://github.com/aierm/myir-openwrt/actions/runs/29472379194)已通过镜像结构、内核、DTB、ext4 和元数据校验。固件已发布为 [myir-v2026.07.16-1](https://github.com/aierm/myir-openwrt/releases/tag/myir-v2026.07.16-1)。
+2026-07-16 已在真实 MYS-RZG2L 瑞米派开发板上完成 `proxy-zh` profile 的 LuCI sysupgrade，经过验证的 OpenWrt commit 为 `41f7f75c3453d6cd32c8ed1d36e15b2bcf86accf`，对应的 [GitHub Actions 构建](https://github.com/aierm/myir-openwrt/actions/runs/29472379194)已通过镜像结构、内核、DTB、ext4 和元数据校验。固件已发布为 [myir-v2026.07.16-1](https://github.com/aierm/myir-openwrt/releases/tag/myir-v2026.07.16-1)。
 
 ## 1. 支持范围与磁盘布局
 
 目前只对以下板型合同做了完整适配：
 
 ```text
-设备：MYiR MYS-RZG2L WiFi
+设备：MYiR MYS-RZG2L Remi Pi
 compatible：myir,mys-rzg2l-wifi
 OpenWrt profile：myir_mys_rzg2l_wifi
 启动根分区：/dev/mmcblk0p2
@@ -129,8 +129,8 @@ sed -i 's|^CONFIG_EXTERNAL_KERNEL_TREE=.*|CONFIG_EXTERNAL_KERNEL_TREE="/absolute
 
 | profile | 内容 | rootfs 镜像大小 |
 | --- | --- | --- |
-| `minimal` | 板级基础系统、网络、WiFi、LuCI 和 sysupgrade 依赖 | 256 MiB |
-| `proxy-zh` | 中文 LuCI、代理软件及其依赖 | 512 MiB |
+| `minimal` | 板级基础系统、网络、WiFi、LuCI 和 sysupgrade 依赖,未配置其他软件| 256 MiB |
+| `proxy-zh` | 中文LuCI、passwall2、openclash、nikki代理软件及其依赖 | 512 MiB |
 
 构建 `minimal`：
 
@@ -220,7 +220,7 @@ git commit -m 'myir: add my-custom firmware profile'
 git push
 ```
 
-## 5. 从源码添加 LuCI 主题或普通软件包
+## 5. 从源码添加 LuCI 普通软件包
 
 ### 5.1 本地添加 luci-theme-argon
 
@@ -261,7 +261,7 @@ git -C package/luci-theme-argon checkout \
 
 ### 5.2 让 GitHub Actions 也取得源码包
 
-如果不把第三方源码放进自己的 Git 仓库，可在工作流的 `Update and install feeds` 之前加入：
+如果不把第三方源码放进自己的 Git 仓库，可在[工作流](https://github.com/aierm/myir-openwrt/blob/codex/myir-sysupgrade/.github/workflows/myir-rzg2l-build.yml)的 `Update and install feeds` 之前加入：
 
 ```yaml
 - name: Checkout custom source packages
@@ -273,50 +273,58 @@ git -C package/luci-theme-argon checkout \
       1c686ed83cdf0b79684df45074111ff56f296a6b
 ```
 
-更严格的长期维护方式是使用 Git submodule：
+然后在[自定义 profile](https://github.com/aierm/myir-openwrt/blob/codex/myir-sysupgrade/configs/myir-rzg2l/profiles/proxy-zh.config) 中加入：
 
-```sh
-git submodule add https://github.com/jerrykuku/luci-theme-argon.git \
-  package/luci-theme-argon
-git -C package/luci-theme-argon checkout \
-  1c686ed83cdf0b79684df45074111ff56f296a6b
-git add .gitmodules package/luci-theme-argon
-git commit -m 'packages: add pinned luci-theme-argon'
+```config
+CONFIG_PACKAGE_luci-theme-argon=y
 ```
 
-采用 submodule 后，把 OpenWrt checkout 改为：
+### 5.3 在 GitHub Actions构建中开启临时 SSH 用于临时调试
 
+修改[工作流](https://github.com/aierm/myir-openwrt/blob/codex/myir-sysupgrade/.github/workflows/myir-rzg2l-build.yml)的 `Update and install feeds`之后加入如下
 ```yaml
-with:
-  path: openwrt
-  fetch-depth: 1
-  submodules: recursive
+      - name: Update and install feeds
+        working-directory: openwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      # 【新增步骤】在此处暂停并断开，为你生成一个 SSH 连接
+      - name: Setup Tmate SSH Debugger
+        uses: mxschmitt/action-tmate@v3
+        # 提示：调完配置后在SSH终端输入 'exit'，编译就会继续往下走
+
+      - name: Prepare defconfig
+        working-directory: openwrt
+        run: |
+          chmod +x scripts/prepare-myir-config.sh
+          ./scripts/prepare-myir-config.sh "$MYIR_PROFILE"
+          sed -i "s|^CONFIG_EXTERNAL_KERNEL_TREE=.*|CONFIG_EXTERNAL_KERNEL_TREE=\"$GITHUB_WORKSPACE/rz_linux-cip\"|" .config
+          export TERM=xterm
+          make defconfig
+
 ```
 
-不要直接把带有内部 `.git` 目录的 clone 当普通目录提交，否则主仓库只会记录一个不完整的嵌套仓库状态。
+提交代码并触发 GitHub Actions，流程运行到这一步时会暂停,展开 GitHub 的日志，会看到一行类似 ssh xxx@tmate.io的 SSH 字符串,复制该字符串，粘贴到本地终端连接 SSH
+<img width="1910" height="989" alt="截图_2026-07-17_11-01-10" src="https://github.com/user-attachments/assets/10690c19-498c-43b3-8bef-421afc72faa0" />
 
-### 5.3 其他源码包的通用规则
-
-添加前先检查是否已有同名包：
-
+连接成功后,应该会有这样一段提示
+```text
+Tip: if you wish to use tmate only for remote access, run: tmate -F
+To see the following messages again, run in a tmate session: tmate show-messages
+Press <q> or <ctrl-c> to continue
+```
+我们按提示按下键盘上的 q 键（或按 Ctrl + C）退出 tmate 消息查看器，就能进入 workflows 的交互式 Linux 命令行,之后参考下面命令,minimal 可替换成自己的 profiles,运行 make menuconfig 后即可进入 openwrt 的图形交互界面。
 ```sh
-find package feeds -type d -name 'luci-theme-argon' -print 2>/dev/null
+cd openwrt
+chmod +x scripts/prepare-myir-config.sh
+./scripts/prepare-myir-config.sh "minimal"
+sed -i "s|^CONFIG_EXTERNAL_KERNEL_TREE=.*|CONFIG_EXTERNAL_KERNEL_TREE=\"$GITHUB_WORKSPACE/rz_linux-cip\"|" .config
+export TERM=xterm
+make menuconfig
 ```
-
-本地 `package/` 与 feed 同时提供同名包会造成覆盖、冲突或选错版本。选择一种来源即可。
-
-普通源码包有三种常见管理方式：
-
-1. 把包的 OpenWrt Makefile 和补丁直接维护在 `package/<name>/`。
-2. 固定 commit 后用 Git submodule 管理完整包目录。
-3. 在独立 feed 中维护多个包，再把 `src-git` 写入 `feeds.conf`。
-
-无论采用哪一种，都应固定源码 commit，保留许可证，使用真实源码哈希，并在目标 manifest 中确认包确实进入固件：
-
-```sh
-grep '^luci-theme-argon ' \
-  bin/targets/renesas/armv8/openwrt-renesas-armv8-myir_mys_rzg2l_wifi.manifest
-```
+<img width="1454" height="465" alt="截图_2026-07-17_11-00-24-1" src="https://github.com/user-attachments/assets/8384d290-6711-4049-b41a-5729e7953706" />
+调试确认完成后 SAVE 配置文件,退出交互界面,之后在终端输入"exit"断开连接,GitHub Actions 自动化工作流程就能够自动获取刚才的更改并继续构建固件。
 
 ## 6. 添加内核驱动、firmware 和 DTS
 
